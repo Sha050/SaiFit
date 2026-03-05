@@ -1,0 +1,55 @@
+*.iml
+.gradle
+local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Gradle
+.gradle/
+build/
+*/build/
+
+# IDE
+.idea/
+.vscode/
+
+# Keystore files
+*.jks
+*.keystore
+
+# local properties
+local.properties
+
+# Log Files
+*.log
+*.txt
+
+# Python & AI Pipeline
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+.env
+
+# Media
+sample_videos/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Builds
+*.apk
+*.aab
+/SaiFit.apk
