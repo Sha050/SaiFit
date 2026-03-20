@@ -1,3 +1,4 @@
+import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 import logging
 from app.core.config import settings
@@ -153,25 +154,44 @@ async def connect_to_mongo():
     """Try to connect to MongoDB Atlas.  If it fails, fall back to the
     in-memory store so the server always starts."""
     logger.info("Connecting to MongoDB...")
-    try:
-        import certifi
-        client = AsyncIOMotorClient(
-            settings.MONGODB_URL,
-            serverSelectionTimeoutMS=5000,   # fail fast (5 s instead of 20 s)
-            connectTimeoutMS=5000,
-            tlsCAFile=certifi.where()
-        )
-        # Verify connection
-        await client.admin.command("ping")
-        db.client = client
-        db.db = client[settings.MONGODB_DB_NAME]
-        db.using_fallback = False
-        logger.info("Successfully connected to MongoDB Atlas!")
-    except Exception as e:
-        logger.warning(f"MongoDB Atlas unreachable ({e}). Using in-memory fallback.")
-        db.client = None
-        db.db = _InMemoryDB()
-        db.using_fallback = True
+    import certifi
+
+    last_error = None
+    for attempt in range(1, 4):
+        client = None
+        try:
+            client = AsyncIOMotorClient(
+                settings.MONGODB_URL,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=5000,
+                tlsCAFile=certifi.where(),
+            )
+            # Require a writable primary before accepting the cluster.
+            await client.admin.command("ping")
+            db.client = client
+            db.db = client[settings.MONGODB_DB_NAME]
+            db.using_fallback = False
+            logger.info("Successfully connected to MongoDB Atlas!")
+            return
+        except Exception as e:
+            last_error = e
+            logger.warning(
+                "MongoDB Atlas connection attempt %s/3 failed: %s",
+                attempt,
+                e,
+            )
+            if client:
+                client.close()
+            if attempt < 3:
+                await asyncio.sleep(2)
+
+    logger.warning(
+        "MongoDB Atlas unreachable after retries (%s). Using in-memory fallback.",
+        last_error,
+    )
+    db.client = None
+    db.db = _InMemoryDB()
+    db.using_fallback = True
 
 
 async def close_mongo_connection():

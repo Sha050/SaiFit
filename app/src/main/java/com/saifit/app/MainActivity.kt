@@ -66,6 +66,7 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
     }
     val recordingViewModel = remember {
         RecordingViewModel(
+            navController.context.applicationContext,
             container.userRepository,
             container.testRepository,
             container.resultRepository
@@ -367,7 +368,7 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
             VideoRecordingScreen(
                 test = uiState.test,
                 isRecording = uiState.isRecording,
-                isEvaluating = false, 
+                isEvaluating = uiState.isEvaluating,
                 recordingDurationMs = uiState.recordingDurationMs,
                 onStartRecording = { recordingViewModel.startRecording() },
                 onUpdateDuration = { ms -> recordingViewModel.updateDuration(ms) },
@@ -467,9 +468,12 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
                 videoUri = uiState.videoUri,
                 recordingDurationMs = uiState.recordingDurationMs,
                 segments = mockSegments,
+                isEvaluating = uiState.isEvaluating,
+                errorMessage = uiState.error,
                 onConfirmAndEvaluate = {
                     recordingViewModel.confirmAndEvaluate()
                 },
+                onDismissError = { recordingViewModel.clearError() },
                 onRetake = {
                     recordingViewModel.reset()
                     recordingViewModel.loadTest(testId)

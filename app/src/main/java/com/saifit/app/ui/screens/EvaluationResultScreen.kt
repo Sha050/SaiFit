@@ -1,17 +1,69 @@
 package com.saifit.app.ui.screens
 
-import androidx.compose.animation.core.*
+import android.net.Uri
+import android.util.Log
+import android.widget.MediaController
+import android.widget.VideoView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.GppBad
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,11 +73,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.saifit.app.data.model.*
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import com.saifit.app.data.api.ApiClient
+import com.saifit.app.data.model.BenchmarkComparison
+import com.saifit.app.data.model.FlagSeverity
+import com.saifit.app.data.model.FlagType
+import com.saifit.app.data.model.MovementQuality
+import com.saifit.app.data.model.PerformanceTier
+import com.saifit.app.data.model.ResultStatus
+import com.saifit.app.data.model.TestResult
+import com.saifit.app.data.model.VerificationResult
+import com.saifit.app.data.model.VideoSegment
+import kotlinx.coroutines.delay
+import java.io.File
 
 @Composable
 fun EvaluationResultScreen(
@@ -41,8 +101,6 @@ fun EvaluationResultScreen(
         }
         return
     }
-
-    val context = LocalContext.current
 
     val scaleAnim = remember { Animatable(0.8f) }
     LaunchedEffect(Unit) {
@@ -158,6 +216,15 @@ fun EvaluationResultScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                if (result.videoUri != null) {
+                    AiAnalysisPlayerCard(
+                        testName = result.testName,
+                        videoUri = result.videoUri,
+                        segments = result.verification?.segments.orEmpty()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 result.suggestedSport?.let { sport ->
                     SportRecommendationCard(sport)
                     Spacer(modifier = Modifier.height(16.dp))
@@ -165,32 +232,6 @@ fun EvaluationResultScreen(
 
                 if (benchmarkComparison != null) {
                     BenchmarkCard(benchmarkComparison)
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                if (result.videoUri != null && result.videoUri.startsWith("/uploads")) {
-                    val fullVideoStr = "http://${ApiClient.currentIp}:8000${result.videoUri}"
-                    Button(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(Uri.parse(fullVideoStr), "video/*")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Icon(Icons.Default.PlayCircle, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Watch AI Analysis (Pose Skeleton)", style = MaterialTheme.typography.titleMedium)
-                    }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -317,6 +358,325 @@ fun EvaluationResultScreen(
             }
         }
     }
+}
+
+@Composable
+private fun AiAnalysisPlayerCard(
+    testName: String,
+    videoUri: String,
+    segments: List<VideoSegment>
+) {
+    val resolvedUri = remember(videoUri) { resolveAnalysisVideoUri(videoUri) }
+    var videoView by remember { mutableStateOf<VideoView?>(null) }
+    var playbackPositionMs by remember(videoUri) { mutableLongStateOf(0L) }
+    var durationMs by remember(videoUri) { mutableLongStateOf(1L) }
+    var isPrepared by remember(videoUri) { mutableStateOf(false) }
+    var isPlaying by remember(videoUri) { mutableStateOf(false) }
+    var hasPlaybackError by remember(videoUri) { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            videoView?.stopPlayback()
+        }
+    }
+
+    LaunchedEffect(videoView, isPrepared) {
+        while (true) {
+            val currentView = videoView
+            if (currentView != null && isPrepared) {
+                playbackPositionMs = currentView.currentPosition.toLong()
+                durationMs = currentView.duration.toLong().coerceAtLeast(1L)
+                isPlaying = currentView.isPlaying
+            }
+            delay(120)
+        }
+    }
+
+    val repSegments = remember(segments) {
+        segments.filter { it.label.startsWith("Rep", ignoreCase = true) }
+    }
+    val shuttleSegments = remember(segments) {
+        segments.filter { it.label.startsWith("Shuttle", ignoreCase = true) }
+    }
+    val completedSegments = remember(playbackPositionMs, segments) {
+        segments.count { playbackPositionMs >= it.endTimeMs }
+    }
+    val completedRepSegments = remember(playbackPositionMs, repSegments) {
+        repSegments.count { playbackPositionMs >= it.endTimeMs }
+    }
+    val completedShuttleSegments = remember(playbackPositionMs, shuttleSegments) {
+        shuttleSegments.count { playbackPositionMs >= it.endTimeMs }
+    }
+    val activeSegment = remember(playbackPositionMs, segments) {
+        segments.firstOrNull { playbackPositionMs in it.startTimeMs until it.endTimeMs }
+    }
+    val isRepBased = remember(testName, repSegments) {
+        testName.contains("sit", ignoreCase = true) && repSegments.isNotEmpty()
+    }
+    val isShuttleBased = remember(testName, shuttleSegments) {
+        testName.contains("shuttle", ignoreCase = true) || shuttleSegments.isNotEmpty()
+    }
+    val shuttleTarget = remember(isShuttleBased, shuttleSegments) {
+        if (isShuttleBased) maxOf(10, shuttleSegments.size) else 0
+    }
+    val liveMetricLabel = when {
+        isRepBased -> "Live reps"
+        isShuttleBased -> "Live shuttles"
+        else -> "Live stage"
+    }
+    val liveValueText = when {
+        isRepBased -> "${completedRepSegments}/${repSegments.size}"
+        isShuttleBased -> "${completedShuttleSegments}/${shuttleTarget}"
+        else -> activeSegment?.label ?: if (segments.isNotEmpty() && completedSegments >= segments.size) "Complete" else "Analyzing"
+    }
+    val liveCaption = when {
+        isRepBased && activeSegment != null -> "${activeSegment.label} in progress"
+        isRepBased && completedRepSegments >= repSegments.size && repSegments.isNotEmpty() -> "All detected reps completed"
+        isRepBased -> "Rep count updates as playback crosses each completed cycle"
+        isShuttleBased && activeSegment != null -> "${activeSegment.label} in progress"
+        isShuttleBased && completedShuttleSegments >= shuttleTarget && shuttleSegments.isNotEmpty() -> "Full shuttle drill completed"
+        isShuttleBased && shuttleSegments.isNotEmpty() -> "Shuttle count updates at each completed boundary crossing"
+        isShuttleBased -> "No confirmed shuttle crossings yet"
+        activeSegment != null -> activeSegment.label
+        else -> "Pose skeleton video rendered by the backend"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "AI Analysis Playback",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Annotated video with pose skeleton overlay",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = liveMetricLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = liveValueText,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (resolvedUri != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            VideoView(context).apply {
+                                tag = resolvedUri.toString()
+                                videoView = this
+                                val controller = MediaController(context)
+                                controller.setAnchorView(this)
+                                setMediaController(controller)
+                                setVideoURI(resolvedUri)
+                                setOnPreparedListener { mediaPlayer ->
+                                    mediaPlayer.isLooping = false
+                                    durationMs = duration.toLong().coerceAtLeast(1L)
+                                    playbackPositionMs = 0L
+                                    hasPlaybackError = false
+                                    isPrepared = true
+                                    start()
+                                    isPlaying = true
+                                }
+                                setOnCompletionListener {
+                                    playbackPositionMs = durationMs
+                                    isPlaying = false
+                                }
+                                setOnErrorListener { _, what, extra ->
+                                    Log.e("EvaluationResult", "AI analysis playback failed: what=$what extra=$extra")
+                                    hasPlaybackError = true
+                                    isPlaying = false
+                                    true
+                                }
+                            }
+                        },
+                        update = { view ->
+                            videoView = view
+                            val source = resolvedUri.toString()
+                            if (view.tag != source) {
+                                view.tag = source
+                                isPrepared = false
+                                playbackPositionMs = 0L
+                                durationMs = 1L
+                                view.stopPlayback()
+                                view.setVideoURI(resolvedUri)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when {
+                                        isRepBased -> "Reps: $liveValueText"
+                                        isShuttleBased -> "Shuttles: $liveValueText"
+                                        else -> liveValueText
+                                    },
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f)
+                    ) {
+                        Text(
+                            text = liveCaption,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LinearProgressIndicator(
+                    progress = { (playbackPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(999.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${formatDuration(playbackPositionMs)} / ${formatDuration(durationMs)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(
+                        onClick = {
+                            val currentView = videoView ?: return@TextButton
+                            if (currentView.isPlaying) {
+                                currentView.pause()
+                                isPlaying = false
+                            } else {
+                                if (isPrepared && playbackPositionMs >= durationMs - 250L) {
+                                    currentView.seekTo(0)
+                                    playbackPositionMs = 0L
+                                }
+                                currentView.start()
+                                isPlaying = true
+                            }
+                        },
+                        enabled = !hasPlaybackError && isPrepared
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isPlaying) "Pause" else "Play")
+                    }
+                }
+            } else {
+                Text(
+                    text = "AI analysis video is not available for playback.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            if (hasPlaybackError) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "The annotated analysis video could not be played on this device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
+private fun resolveAnalysisVideoUri(videoUri: String?): Uri? {
+    if (videoUri.isNullOrBlank()) return null
+    return when {
+        videoUri.startsWith("http://") || videoUri.startsWith("https://") -> Uri.parse(videoUri)
+        videoUri.startsWith("/uploads/") -> Uri.parse("http://${ApiClient.currentIp}:8000$videoUri")
+        videoUri.startsWith("/") -> Uri.fromFile(File(videoUri))
+        else -> Uri.parse(videoUri)
+    }
+}
+
+private fun formatDuration(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return "%02d:%02d".format(minutes, seconds)
 }
 
 @Composable
