@@ -97,70 +97,6 @@ All AI-evaluated tests use keypoint angles and spatial features derived from the
 
 ---
 
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│           Android App (Kotlin)           │
-│  Jetpack Compose UI → ViewModel → Repo  │
-│         CameraX (video recording)        │
-└────────────────┬────────────────────────┘
-                 │  HTTP / REST (Retrofit)
-                 ▼
-┌─────────────────────────────────────────┐
-│         FastAPI Backend (Python)         │
-│  /upload → /evaluate → /submissions     │
-│  /users   /leaderboard  /achievements   │
-└────────────────┬────────────────────────┘
-                 │
-        ┌────────┴────────┐
-        ▼                 ▼
-  ┌──────────┐    ┌──────────────────┐
-  │ MongoDB  │    │  AI Pipeline     │
-  │ (Motor)  │    │  YOLOv8m-Pose   │
-  │          │    │  OpenCV + FFmpeg │
-  └──────────┘    └──────────────────┘
-```
-
----
-
-## Project Structure
-
-```
-SaiFit/
-├── app/                            # Android application
-│   └── src/main/java/com/saifit/app/
-│       ├── data/
-│       │   ├── api/                # Retrofit API interface & client
-│       │   ├── model/              # Data classes / domain models
-│       │   └── repository/         # Repositories (User, Test, Result, Badge…)
-│       ├── ui/
-│       │   ├── screens/            # All Compose screens (19 screens)
-│       │   └── viewmodel/          # ViewModels for each screen
-│       └── MainActivity.kt         # Navigation host
-│
-├── backend/                        # Python FastAPI server
-│   ├── app/
-│   │   ├── api/                    # Route handlers
-│   │   │   ├── pose_evaluator.py   # YOLOv8 AI pipeline (core)
-│   │   │   ├── evaluation.py       # Evaluation endpoint & scoring logic
-│   │   │   ├── submissions.py      # Submission tracking
-│   │   │   ├── upload.py           # Video upload handler
-│   │   │   ├── leaderboard.py      # Rankings
-│   │   │   ├── achievements.py     # Badges & progress
-│   │   │   ├── users.py            # User management
-│   │   │   └── benchmarks.py       # Benchmark standards
-│   │   ├── core/config.py          # Settings (pydantic-settings)
-│   │   └── db/mongodb.py           # MongoDB connection manager
-│   ├── .env.example                # Template — copy to .env before running
-│   ├── requirements.txt
-│   └── start_backend.bat           # One-click Windows launcher
-│
-└── ai_pipeline/                    # Standalone AI pipeline scripts
-```
-
----
-
 ## Getting Started
 
 ### Prerequisites
@@ -308,21 +244,11 @@ Base URL: `http://<host>:8000/api/v1`
 
 ---
 
-## Screenshots
+## Preview
 
-> *Add screenshots here — drag images into this section on GitHub or place them in a `docs/screenshots/` folder*
 
-| Screen | Preview |
-|--------|---------|
-| Onboarding | *(screenshot)* |
-| Athlete Dashboard | *(screenshot)* |
-| Video Recording | *(screenshot)* |
-| AI Evaluation Result | *(screenshot)* |
-| Leaderboard | *(screenshot)* |
-| Badges & Achievements | *(screenshot)* |
-| Admin Dashboard | *(screenshot)* |
 
----
+
 
 ## License
 
