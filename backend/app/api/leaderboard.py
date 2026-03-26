@@ -16,7 +16,7 @@ async def get_leaderboard(
     """
     
     # Calculate sort order based on test_name (lower is better for runs)
-    lower_is_better = test_name in ["Shuttle Run (10 \u00d7 4m)", "Endurance Run (800 m)", "Endurance Run (1600 m)", "shuttle_run", "endurance_run_800m", "endurance_run_1600m"]
+    lower_is_better = test_name in ["Shuttle Run (10 \u00d7 4m)", "shuttle_run"]
     sort_dir = 1 if lower_is_better else -1
     
     match_stage = {"$match": {"test_name": test_name, "status": "VALID"}}

@@ -14,13 +14,29 @@ class ResultRepository {
     val results: StateFlow<List<TestResult>> = _results.asStateFlow()
 
     fun addResult(result: TestResult) {
-        _results.update { current -> listOf(result) + current }
+        upsertResult(result)
+    }
+
+    suspend fun saveResult(result: TestResult): TestResult {
+        return try {
+            val saved = ApiClient.api.createResult(result)
+            upsertResult(saved)
+            saved
+        } catch (e: Exception) {
+            e.printStackTrace()
+            upsertResult(result)
+            result
+        }
     }
 
     suspend fun fetchResults(athleteId: String? = null) {
         try {
             val fetched = ApiClient.api.getResults(athleteId)
-            _results.value = fetched
+            val merged = _results.value.associateBy { it.id }.toMutableMap()
+            fetched.forEach { result ->
+                merged[result.id] = result
+            }
+            _results.value = merged.values.sortedByDescending { it.timestamp }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -33,4 +49,11 @@ class ResultRepository {
         _results.value.filter { it.testId == testId }
 
     fun getAllResults(): List<TestResult> = _results.value
+
+    private fun upsertResult(result: TestResult) {
+        _results.update { current ->
+            (listOf(result) + current.filterNot { it.id == result.id })
+                .sortedByDescending { it.timestamp }
+        }
+    }
 }

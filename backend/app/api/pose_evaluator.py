@@ -64,7 +64,7 @@ def _kp_conf(kps, idx_a, idx_b):
 
 
 def _frame_stride_for(fps: float, test_type: str) -> int:
-    if test_type == "situps":
+    if test_type in ("situps", "pushups", "squats"):
         target_analysis_fps = 6.0
     elif test_type == "vertical_jump":
         target_analysis_fps = 14.0
@@ -185,6 +185,133 @@ def _transcode_for_opencv(video_path: Path) -> Path:
     ]
     subprocess.run(cmd, check=True, capture_output=True)
     return transcoded_path
+
+
+
+def _compute_pushup_features(kps):
+    shoulder = _avg_kp(kps, KP_L_SHOULDER, KP_R_SHOULDER)
+    elbow = _avg_kp(kps, 7, 8)
+    wrist = _avg_kp(kps, 9, 10)
+    hip = _avg_kp(kps, KP_L_HIP, KP_R_HIP)
+    ankle = _avg_kp(kps, KP_L_ANKLE, KP_R_ANKLE)
+
+    left_chain_conf = float(min(kps[KP_L_SHOULDER][2], kps[7][2], kps[9][2], kps[KP_L_HIP][2], kps[KP_L_ANKLE][2]))
+    right_chain_conf = float(min(kps[KP_R_SHOULDER][2], kps[8][2], kps[10][2], kps[KP_R_HIP][2], kps[KP_R_ANKLE][2]))
+    avg_chain_conf = min(
+        _kp_conf(kps, KP_L_SHOULDER, KP_R_SHOULDER),
+        _kp_conf(kps, 7, 8),
+        _kp_conf(kps, 9, 10),
+        _kp_conf(kps, KP_L_HIP, KP_R_HIP),
+        _kp_conf(kps, KP_L_ANKLE, KP_R_ANKLE)
+    )
+
+    angle_candidates = []
+    back_candidates = []
+    conf_values = []
+    
+    if left_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        angle_candidates.append(calculate_angle(_point(kps, KP_L_SHOULDER), _point(kps, 7), _point(kps, 9)))
+        back_candidates.append(calculate_angle(_point(kps, KP_L_SHOULDER), _point(kps, KP_L_HIP), _point(kps, KP_L_ANKLE)))
+        conf_values.append(left_chain_conf)
+    if right_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        angle_candidates.append(calculate_angle(_point(kps, KP_R_SHOULDER), _point(kps, 8), _point(kps, 10)))
+        back_candidates.append(calculate_angle(_point(kps, KP_R_SHOULDER), _point(kps, KP_R_HIP), _point(kps, KP_R_ANKLE)))
+        conf_values.append(right_chain_conf)
+    if not angle_candidates and avg_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        angle_candidates.append(calculate_angle(shoulder, elbow, wrist))
+        back_candidates.append(calculate_angle(shoulder, hip, ankle))
+        conf_values.append(avg_chain_conf)
+
+    if not angle_candidates:
+        return None
+
+    return {
+        "elbow_angle": float(sum(angle_candidates) / len(angle_candidates)),
+        "back_angle": float(sum(back_candidates) / len(back_candidates)),
+        "conf_values": conf_values,
+        "shoulder": shoulder,
+        "elbow": elbow,
+        "wrist": wrist
+    }
+
+
+def _compute_pushup_score(features, elbow_angle_history):
+    normalized, low, high = _normalize_feature(features["elbow_angle"], elbow_angle_history, min_range=30.0)
+    if normalized is None:
+        return None, {}
+    return normalized, {"elbow_angle": (low, high)}
+
+
+def _pushup_segment_confidence(min_up_score: float, conf_values: list[float], back_angle: float) -> int:
+    depth_bonus = max(0.0, 0.40 - min_up_score)
+    low_conf = min(conf_values)
+    form_penalty = max(0.0, 160.0 - back_angle) * 0.5
+    score = 80 + (depth_bonus * 35.0) + (low_conf * 15.0) - form_penalty
+    return int(np.clip(score, 75, 99))
+
+
+def _compute_squat_features(kps):
+    shoulder = _avg_kp(kps, KP_L_SHOULDER, KP_R_SHOULDER)
+    hip = _avg_kp(kps, KP_L_HIP, KP_R_HIP)
+    knee = _avg_kp(kps, KP_L_KNEE, KP_R_KNEE)
+    ankle = _avg_kp(kps, KP_L_ANKLE, KP_R_ANKLE)
+
+    left_chain_conf = float(min(kps[KP_L_SHOULDER][2], kps[KP_L_HIP][2], kps[KP_L_KNEE][2], kps[KP_L_ANKLE][2]))
+    right_chain_conf = float(min(kps[KP_R_SHOULDER][2], kps[KP_R_HIP][2], kps[KP_R_KNEE][2], kps[KP_R_ANKLE][2]))
+    avg_chain_conf = min(
+        _kp_conf(kps, KP_L_SHOULDER, KP_R_SHOULDER),
+        _kp_conf(kps, KP_L_HIP, KP_R_HIP),
+        _kp_conf(kps, KP_L_KNEE, KP_R_KNEE),
+        _kp_conf(kps, KP_L_ANKLE, KP_R_ANKLE),
+    )
+
+    knee_candidates = []
+    hip_candidates = []
+    conf_values = []
+    
+    if left_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        knee_candidates.append(calculate_angle(_point(kps, KP_L_HIP), _point(kps, KP_L_KNEE), _point(kps, KP_L_ANKLE)))
+        hip_candidates.append(calculate_angle(_point(kps, KP_L_SHOULDER), _point(kps, KP_L_HIP), _point(kps, KP_L_KNEE)))
+        conf_values.append(left_chain_conf)
+    if right_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        knee_candidates.append(calculate_angle(_point(kps, KP_R_HIP), _point(kps, KP_R_KNEE), _point(kps, KP_R_ANKLE)))
+        hip_candidates.append(calculate_angle(_point(kps, KP_R_SHOULDER), _point(kps, KP_R_HIP), _point(kps, KP_R_KNEE)))
+        conf_values.append(right_chain_conf)
+    if not knee_candidates and avg_chain_conf >= MIN_KEYPOINT_CONFIDENCE:
+        knee_candidates.append(calculate_angle(hip, knee, ankle))
+        hip_candidates.append(calculate_angle(shoulder, hip, knee))
+        conf_values.append(avg_chain_conf)
+
+    if not knee_candidates:
+        return None
+
+    return {
+        "knee_angle": float(sum(knee_candidates) / len(knee_candidates)),
+        "hip_angle": float(sum(hip_candidates) / len(hip_candidates)),
+        "conf_values": conf_values,
+        "shoulder": shoulder,
+        "hip": hip,
+        "knee": knee,
+        "ankle": ankle
+    }
+
+
+def _compute_squat_score(features, knee_angle_history, hip_angle_history):
+    n_knee, low_k, high_k = _normalize_feature(features["knee_angle"], knee_angle_history, min_range=40.0)
+    n_hip, low_h, high_h = _normalize_feature(features["hip_angle"], hip_angle_history, min_range=40.0)
+    
+    if n_knee is None or n_hip is None:
+        return None, {}
+    
+    score = (n_knee + n_hip) / 2.0
+    return score, {"knee_angle": (low_k, high_k), "hip_angle": (low_h, high_h)}
+
+
+def _squat_segment_confidence(min_up_score: float, conf_values: list[float]) -> int:
+    depth_bonus = max(0.0, 0.40 - min_up_score)
+    low_conf = min(conf_values)
+    score = 80 + (depth_bonus * 35.0) + (low_conf * 15.0)
+    return int(np.clip(score, 75, 99))
 
 
 def _compute_situp_features(kps):
@@ -651,7 +778,31 @@ def process_video(video_path: str, test_type: str):
     segments = []
     frame_idx = 0
 
+    
     situp_state = "UNKNOWN"
+    exercise_state = "UNKNOWN"
+    rep_start = 0.0
+    frames_in_new_state = 0
+    debounce_frames = 2
+    pending_state = None
+    last_rep_end = -10000.0
+    min_up_score = 1.0
+    min_rep_ms = 700.0
+    max_rep_ms = 10000.0
+    score_up_threshold = 0.40
+    score_down_threshold = 0.60
+    required_up_depth = 0.35
+    score_history = []
+    
+    pushup_calibrated = False
+    elbow_angle_history = []
+    
+    squat_calibrated = False
+    knee_angle_history = []
+    squat_hip_angle_history = []
+    
+    situp_state = "UNKNOWN"
+
     rep_start = 0.0
     frames_in_new_state = 0
     debounce_frames = 2
@@ -1046,32 +1197,185 @@ def process_video(video_path: str, test_type: str):
                         }
                     )
 
-            elif "endurance_run" in test_type:
-                conf_s = float(kps[KP_L_SHOULDER][2])
-                conf_a = float(kps[KP_L_ANKLE][2])
-                if conf_s > MIN_KEYPOINT_CONFIDENCE and conf_a > MIN_KEYPOINT_CONFIDENCE:
-                    y_min = kps[KP_L_SHOULDER][1] / frame_h
-                    y_max = kps[KP_L_ANKLE][1] / frame_h
-                    height_ratio = abs(y_max - y_min)
+            elif test_type == "pushups":
+                features = _compute_pushup_features(kps)
+                if features is not None:
+                    elbow_angle_history.append(features["elbow_angle"])
+                    if len(elbow_angle_history) > 120:
+                        elbow_angle_history.pop(0)
 
-                    if height_ratio > 0.45 and not is_passing:
-                        is_passing = True
-                        pass_start = current_time_ms
-                    elif height_ratio < 0.35 and is_passing:
-                        is_passing = False
-                        passes += 1
-                        segments.append(
-                            {
-                                "label": f"Lap {passes}",
-                                "start_time_ms": int(pass_start),
-                                "end_time_ms": int(current_time_ms),
-                                "confidence": 88,
-                            }
-                        )
+                    signal_score, current_ranges = _compute_pushup_score(features, elbow_angle_history)
 
-                    target_laps = 2 if test_type == "endurance_run_800m" else 4
-                    if passes >= target_laps:
-                        value = current_time_ms / 1000.0
+                    if signal_score is not None:
+                        score_history.append(signal_score)
+                        if len(score_history) > 10:
+                            score_history.pop(0)
+                        smoothed_score = float(np.mean(score_history[-3:]))
+
+                        if not pushup_calibrated and len(elbow_angle_history) >= max(12, 24 // frame_stride):
+                            pushup_calibrated = True
+
+                        if exercise_state == "UNKNOWN":
+                            if smoothed_score >= 0.5:
+                                exercise_state = "DOWN"
+                            else:
+                                exercise_state = "UP"
+                                rep_start = current_time_ms
+                                min_up_score = smoothed_score
+
+                        shoulder_px = (int(features["shoulder"][0]), int(features["shoulder"][1]))
+                        elbow_px = (int(features["elbow"][0]), int(features["elbow"][1]))
+                        wrist_px = (int(features["wrist"][0]), int(features["wrist"][1]))
+                        cv2.putText(annotated_frame, f"Elbow: {features['elbow_angle']:.0f}", (elbow_px[0]-40, elbow_px[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                        cv2.putText(annotated_frame, f"Score: {smoothed_score:.2f}", (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+                        cv2.line(annotated_frame, shoulder_px, elbow_px, (0, 255, 255), 2)
+                        cv2.line(annotated_frame, elbow_px, wrist_px, (0, 255, 255), 2)
+
+                        if exercise_state == "DOWN" and smoothed_score <= score_up_threshold:
+                            if pending_state != "UP":
+                                pending_state = "UP"
+                                frames_in_new_state = 1
+                            else:
+                                frames_in_new_state += 1
+
+                            if frames_in_new_state >= debounce_frames:
+                                exercise_state = "UP"
+                                rep_start = current_time_ms - ((debounce_frames - 1) * frame_time_ms * frame_stride)
+                                min_up_score = smoothed_score
+                                pending_state = None
+                                frames_in_new_state = 0
+
+                        elif exercise_state == "UP":
+                            min_up_score = min(min_up_score, smoothed_score)
+                            if smoothed_score >= score_down_threshold:
+                                if pending_state != "DOWN":
+                                    pending_state = "DOWN"
+                                    frames_in_new_state = 1
+                                else:
+                                    frames_in_new_state += 1
+
+                                if frames_in_new_state >= debounce_frames:
+                                    rep_end = current_time_ms
+                                    rep_duration = rep_end - rep_start
+                                    completed_full_motion = min_up_score <= required_up_depth
+                                    if (
+                                        completed_full_motion
+                                        and min_rep_ms <= rep_duration <= max_rep_ms
+                                        and (rep_end - last_rep_end) >= (min_rep_ms * 0.6)
+                                    ):
+                                        value += 1
+                                        segments.append({
+                                            "label": f"Rep {int(value)}",
+                                            "start_time_ms": int(max(rep_start, 0)),
+                                            "end_time_ms": int(rep_end),
+                                            "confidence": _pushup_segment_confidence(min_up_score, features["conf_values"], features["back_angle"]),
+                                        })
+                                        last_rep_end = rep_end
+
+                                    exercise_state = "DOWN"
+                                    min_up_score = 1.0
+                                    pending_state = None
+                                    frames_in_new_state = 0
+                            elif pending_state is not None:
+                                pending_state = None
+                                frames_in_new_state = 0
+                        else:
+                            pending_state = None
+                            frames_in_new_state = 0
+
+                cv2.putText(annotated_frame, f"Push-ups: {int(value)}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+                cv2.putText(annotated_frame, f"State: {exercise_state}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+            elif test_type == "squats":
+                features = _compute_squat_features(kps)
+                if features is not None:
+                    knee_angle_history.append(features["knee_angle"])
+                    squat_hip_angle_history.append(features["hip_angle"])
+                    if len(knee_angle_history) > 120:
+                        knee_angle_history.pop(0)
+                        squat_hip_angle_history.pop(0)
+
+                    signal_score, current_ranges = _compute_squat_score(features, knee_angle_history, squat_hip_angle_history)
+
+                    if signal_score is not None:
+                        score_history.append(signal_score)
+                        if len(score_history) > 10:
+                            score_history.pop(0)
+                        smoothed_score = float(np.mean(score_history[-3:]))
+
+                        if not squat_calibrated and len(knee_angle_history) >= max(12, 24 // frame_stride):
+                            squat_calibrated = True
+
+                        if exercise_state == "UNKNOWN":
+                            if smoothed_score >= 0.5:
+                                exercise_state = "DOWN"
+                            else:
+                                exercise_state = "UP"
+                                rep_start = current_time_ms
+                                min_up_score = smoothed_score
+
+                        hip_px = (int(features["hip"][0]), int(features["hip"][1]))
+                        knee_px = (int(features["knee"][0]), int(features["knee"][1]))
+                        ankle_px = (int(features["ankle"][0]), int(features["ankle"][1]))
+                        cv2.putText(annotated_frame, f"Knee: {features['knee_angle']:.0f}", (knee_px[0]-40, knee_px[1]-20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                        cv2.putText(annotated_frame, f"Score: {smoothed_score:.2f}", (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2)
+                        cv2.line(annotated_frame, hip_px, knee_px, (0, 255, 255), 2)
+                        cv2.line(annotated_frame, knee_px, ankle_px, (0, 255, 255), 2)
+
+                        if exercise_state == "DOWN" and smoothed_score <= score_up_threshold:
+                            if pending_state != "UP":
+                                pending_state = "UP"
+                                frames_in_new_state = 1
+                            else:
+                                frames_in_new_state += 1
+
+                            if frames_in_new_state >= debounce_frames:
+                                exercise_state = "UP"
+                                rep_start = current_time_ms - ((debounce_frames - 1) * frame_time_ms * frame_stride)
+                                min_up_score = smoothed_score
+                                pending_state = None
+                                frames_in_new_state = 0
+
+                        elif exercise_state == "UP":
+                            min_up_score = min(min_up_score, smoothed_score)
+                            if smoothed_score >= score_down_threshold:
+                                if pending_state != "DOWN":
+                                    pending_state = "DOWN"
+                                    frames_in_new_state = 1
+                                else:
+                                    frames_in_new_state += 1
+
+                                if frames_in_new_state >= debounce_frames:
+                                    rep_end = current_time_ms
+                                    rep_duration = rep_end - rep_start
+                                    completed_full_motion = min_up_score <= required_up_depth
+                                    if (
+                                        completed_full_motion
+                                        and min_rep_ms <= rep_duration <= max_rep_ms
+                                        and (rep_end - last_rep_end) >= (min_rep_ms * 0.6)
+                                    ):
+                                        value += 1
+                                        segments.append({
+                                            "label": f"Rep {int(value)}",
+                                            "start_time_ms": int(max(rep_start, 0)),
+                                            "end_time_ms": int(rep_end),
+                                            "confidence": _squat_segment_confidence(min_up_score, features["conf_values"]),
+                                        })
+                                        last_rep_end = rep_end
+
+                                    exercise_state = "DOWN"
+                                    min_up_score = 1.0
+                                    pending_state = None
+                                    frames_in_new_state = 0
+                            elif pending_state is not None:
+                                pending_state = None
+                                frames_in_new_state = 0
+                        else:
+                            pending_state = None
+                            frames_in_new_state = 0
+
+                cv2.putText(annotated_frame, f"Squats: {int(value)}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+                cv2.putText(annotated_frame, f"State: {exercise_state}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
         out_writer.write(annotated_frame)
 
@@ -1105,8 +1409,7 @@ def process_video(video_path: str, test_type: str):
             print(f"[shuttle_run] Failed to add live overlay: {exc}")
 
     final_time = frame_idx / fps
-    if "endurance" in test_type and value == 0:
-        value = final_time
+    pass
 
     annotated_uri = f"/uploads/{final_annotated_path.name}" if final_annotated_path.exists() else None
     print(f"[pose_evaluator] Done! test={test_type} value={value} segments={len(segments)}")

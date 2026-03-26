@@ -227,6 +227,7 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
 
         composable(Route.AdminDashboard.path) {
             val currentUser by container.userRepository.currentUser.collectAsState()
+            val allUsers by container.userRepository.allUsers.collectAsState()
 
             LaunchedEffect(Unit) {
                 container.userRepository.fetchUsers()
@@ -236,14 +237,15 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
             if (currentUser != null) {
                 val allResults by container.resultRepository.results.collectAsState()
                 val availableTests = allResults.map { it.testName }.distinct().sorted()
-                val availableRegions = container.athleteRepository.getAllRegions()
+                val allAthletes = allUsers.filter { it.role == UserRole.ATHLETE }
+                val availableRegions = allAthletes.mapNotNull { it.region }.distinct().sorted()
 
                 AdminDashboardScreen(
                     user = currentUser!!,
                     allResults = allResults,
                     availableTests = availableTests,
                     availableRegions = availableRegions,
-                    allAthletes = container.athleteRepository.getMockAthletes(),
+                    allAthletes = allAthletes,
                     onLogout = {
                         authViewModel.logout()
                         navController.navigate(Route.Auth.path) {
@@ -263,8 +265,9 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
         ) { backStackEntry ->
             val athleteId = backStackEntry.arguments?.getString("athleteId") ?: return@composable
             val allResults by container.resultRepository.results.collectAsState()
+            val allUsers by container.userRepository.allUsers.collectAsState()
             val results = allResults.filter { it.athleteId == athleteId }
-            val athlete = container.athleteRepository.getAthleteById(athleteId)
+            val athlete = allUsers.find { it.id == athleteId }
 
             AdminAthleteProfileScreen(
                 athlete = athlete,
@@ -282,8 +285,9 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
         ) { backStackEntry ->
             val athleteId = backStackEntry.arguments?.getString("athleteId") ?: return@composable
             val allResults by container.resultRepository.results.collectAsState()
+            val allUsers by container.userRepository.allUsers.collectAsState()
             val results = allResults.filter { it.athleteId == athleteId }
-            val athlete = container.athleteRepository.getAthleteById(athleteId)
+            val athlete = allUsers.find { it.id == athleteId }
 
             AdminToSaiScreen(
                 athlete = athlete,
@@ -439,8 +443,6 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
             val testId = backStackEntry.arguments?.getString("testId") ?: return@composable
             val uiState by recordingViewModel.uiState.collectAsState()
 
-            val mockSegments = uiState.mockSegments
-
             LaunchedEffect(uiState.result) {
                 uiState.result?.let { result ->
 
@@ -467,7 +469,6 @@ private fun SaiFitApp(container: com.saifit.app.di.AppContainer) {
                 test = uiState.test,
                 videoUri = uiState.videoUri,
                 recordingDurationMs = uiState.recordingDurationMs,
-                segments = mockSegments,
                 isEvaluating = uiState.isEvaluating,
                 errorMessage = uiState.error,
                 onConfirmAndEvaluate = {

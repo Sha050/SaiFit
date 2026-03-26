@@ -15,6 +15,8 @@ class UserRepository(private val context: android.content.Context) {
 
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+    private val _allUsers = MutableStateFlow<List<User>>(emptyList())
+    val allUsers: StateFlow<List<User>> = _allUsers.asStateFlow()
 
     private val prefs = context.getSharedPreferences("saifit_prefs", android.content.Context.MODE_PRIVATE)
     private val gson = Gson()
@@ -28,6 +30,7 @@ class UserRepository(private val context: android.content.Context) {
                 val user = gson.fromJson(savedUserJson, User::class.java)
                 _currentUser.value = user
                 users[user.email.lowercase()] = user
+                syncUsersState()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -44,6 +47,7 @@ class UserRepository(private val context: android.content.Context) {
             allUsers.forEach { user ->
                 users[user.email.lowercase()] = user
             }
+            syncUsersState()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -56,6 +60,7 @@ class UserRepository(private val context: android.content.Context) {
             if (user != null) {
 
                 users[user.email.lowercase()] = user
+                syncUsersState()
                 _currentUser.value = user
                 prefs.edit().putString("logged_in_user", gson.toJson(user)).apply()
             }
@@ -94,6 +99,7 @@ class UserRepository(private val context: android.content.Context) {
         try {
             val savedUser = com.saifit.app.data.api.ApiClient.api.registerUser(user)
             users[savedUser.email.lowercase()] = savedUser
+            syncUsersState()
             _currentUser.value = savedUser
             prefs.edit().putString("logged_in_user", gson.toJson(savedUser)).apply()
             return savedUser
@@ -102,6 +108,7 @@ class UserRepository(private val context: android.content.Context) {
 
             val localSave = user.copy(id = "user_${System.currentTimeMillis()}")
             users[email.trim().lowercase()] = localSave
+            syncUsersState()
             _currentUser.value = localSave
             prefs.edit().putString("logged_in_user", gson.toJson(localSave)).apply()
             return localSave
@@ -115,10 +122,15 @@ class UserRepository(private val context: android.content.Context) {
     fun updateProfile(user: User) {
         _currentUser.value = user
         users[user.email.trim().lowercase()] = user
+        syncUsersState()
     }
 
     fun logout() {
         _currentUser.value = null
         prefs.edit().remove("logged_in_user").apply()
+    }
+
+    private fun syncUsersState() {
+        _allUsers.value = users.values.sortedBy { it.name.lowercase() }
     }
 }

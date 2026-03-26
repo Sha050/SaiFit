@@ -27,6 +27,9 @@ interface SaiFitApi {
     @GET("submissions/results")
     suspend fun getResults(@Query("athlete_id") athleteId: String? = null): List<TestResult>
 
+    @POST("submissions/result")
+    suspend fun createResult(@Body result: TestResult): TestResult
+
     @GET("leaderboard/")
     suspend fun getLeaderboard(
         @Query("test_name") testName: String,

@@ -4,33 +4,25 @@ import android.net.Uri
 import android.util.Log
 import android.widget.MediaController
 import android.widget.VideoView
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Pause
@@ -70,10 +62,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.saifit.app.data.model.FitnessTest
-import com.saifit.app.data.model.VideoSegment
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +72,6 @@ fun VideoReviewScreen(
     test: FitnessTest?,
     videoUri: String?,
     recordingDurationMs: Long,
-    segments: List<VideoSegment>,
     isEvaluating: Boolean,
     errorMessage: String?,
     onConfirmAndEvaluate: () -> Unit,
@@ -306,101 +295,6 @@ fun VideoReviewScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                if (segments.isNotEmpty()) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Auto-Detected Segments",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                            ) {
-                                Text(
-                                    text = "${segments.size}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "AI has automatically identified key moments in your recording",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(segments) { segment ->
-                            SegmentChip(
-                                segment = segment,
-                                isActive = false,
-                                onClick = { }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .height(32.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        segments.forEach { segment ->
-                            if (recordingDurationMs > 0) {
-                                val startFraction = segment.startTimeMs.toFloat() / recordingDurationMs
-                                val widthFraction = (segment.endTimeMs - segment.startTimeMs).toFloat() / recordingDurationMs
-                                val color = when {
-                                    segment.confidence >= 90 -> MaterialTheme.colorScheme.tertiary
-                                    segment.confidence >= 80 -> MaterialTheme.colorScheme.secondary
-                                    else -> MaterialTheme.colorScheme.error
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(widthFraction)
-                                        .offset(x = (startFraction * 300).dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(color.copy(alpha = 0.35f))
-                                        .padding(horizontal = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = segment.label,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 8.sp,
-                                        color = color,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Card(
@@ -504,17 +398,13 @@ fun VideoReviewScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = if (test?.id == "situps") "Running Sit-up AI" else "Evaluating Video",
+                            text = "Evaluating Video",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (test?.id == "situps") {
-                                "Uploading the video and running YOLO pose detection. This can take a little time."
-                            } else {
-                                "Uploading the video and analyzing your performance."
-                            },
+                            text = "Uploading the video and analyzing your performance.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -585,63 +475,6 @@ private fun getVideoFileInfo(uriString: String): String {
         }
     } catch (_: Exception) {
         "Unable to read video info"
-    }
-}
-
-@Composable
-private fun SegmentChip(
-    segment: VideoSegment,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    val startSec = (segment.startTimeMs / 1000).toInt()
-    val endSec = (segment.endTimeMs / 1000).toInt()
-    val confidenceColor = when {
-        segment.confidence >= 90 -> MaterialTheme.colorScheme.tertiary
-        segment.confidence >= 80 -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.error
-    }
-
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = if (isActive) confidenceColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-        border = if (isActive) androidx.compose.foundation.BorderStroke(1.dp, confidenceColor) else null,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .animateContentSize()
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = segment.label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isActive) confidenceColor else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "${String.format("%02d:%02d", startSec / 60, startSec % 60)} - ${String.format("%02d:%02d", endSec / 60, endSec % 60)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(confidenceColor)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${segment.confidence}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = confidenceColor,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
     }
 }
 

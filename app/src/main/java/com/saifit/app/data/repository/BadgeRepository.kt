@@ -16,7 +16,7 @@ class BadgeRepository(
         val bestByTest = mutableMapOf<String, TestResult>()
         for (result in validResults) {
             val existing = bestByTest[result.testId]
-            val lowerIsBetter = result.testId in setOf("shuttle_run", "endurance_run_800m", "endurance_run_1600m")
+            val lowerIsBetter = result.testId in setOf("shuttle_run")
             if (existing == null ||
                 (lowerIsBetter && result.value < existing.value) ||
                 (!lowerIsBetter && result.value > existing.value)
@@ -179,12 +179,12 @@ class BadgeRepository(
         ))
 
         badges.add(Badge(
-            id = "endurance_king",
-            name = "Endurance King",
-            description = "Complete the 800m endurance run",
-            iconName = "timer",
+            id = "pushup_pro",
+            name = "Push-up Pro",
+            description = "Complete a Push-ups test",
+            iconName = "fitness_center",
             category = BadgeCategory.SPECIAL,
-            earned = completedTestIds.contains("endurance_run_800m")
+            earned = completedTestIds.contains("pushups")
         ))
 
         return badges

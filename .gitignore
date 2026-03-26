@@ -41,6 +41,20 @@ venv/
 backend/.venv/
 backend/venv/
 .env
+backend/.env
+backend/app/uploads/
+
+# ML Model Weights (large binary files — download separately)
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# Backend — test artifacts & dev scripts
+backend/test_results.json
+backend/test_*.py
+backend/get_vid.py
+backend/fix_db.py
 
 # Media
 sample_videos/
@@ -53,3 +67,4 @@ sample_videos/
 *.apk
 *.aab
 /SaiFit.apk
+outputs/

@@ -40,7 +40,7 @@ async def get_achievements(athlete_id: str):
             
             # Keep track of best result per test
             # Note: what is 'best' depends on the test (lower is better for some)
-            lower_is_better = test_id in ["shuttle_run", "endurance_run_800m", "endurance_run_1600m"]
+            lower_is_better = test_id in ["shuttle_run"]
             
             if test_id not in best_results:
                 best_results[test_id] = res

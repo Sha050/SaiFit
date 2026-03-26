@@ -81,10 +81,9 @@ def process_video(video_path: str, test_type: str):
     laps = 0
     lap_start = 0
 
-    # Endurance Run
-    is_passing = False
-    pass_start = 0
-    passes = 0
+    # Pushups & Squats
+    exercise_state = "UP"
+    rep_start = 0
 
     frame_idx = 0
     
@@ -190,27 +189,43 @@ def process_video(video_path: str, test_type: str):
                         lap_start = current_time_ms
                 value = (current_time_ms / 1000.0) if laps >= 10 else 0.0
                     
-            elif "endurance_run" in test_type:
-                y_min = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y
-                y_max = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y
-                height_ratio = abs(y_max - y_min)
+            elif test_type == "pushups":
+                shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+                elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]
+                wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x, landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
                 
-                if height_ratio > 0.45 and not is_passing:
-                    is_passing = True
-                    pass_start = current_time_ms
-                elif height_ratio < 0.35 and is_passing:
-                    is_passing = False
-                    passes += 1
+                angle = calculate_angle(shoulder, elbow, wrist)
+                if angle < 100 and exercise_state == "UP":
+                    exercise_state = "DOWN"
+                    rep_start = current_time_ms
+                elif angle > 150 and exercise_state == "DOWN":
+                    exercise_state = "UP"
+                    value += 1
                     segments.append({
-                        "label": f"Lap {passes}",
-                        "start_time_ms": int(pass_start),
+                        "label": f"Rep {int(value)}",
+                        "start_time_ms": int(rep_start),
                         "end_time_ms": int(current_time_ms),
-                        "confidence": 88
+                        "confidence": 92
                     })
+
+            elif test_type == "squats":
+                hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x, landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+                knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+                ankle = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
                 
-                target_laps = 2 if test_type == "endurance_run_800m" else 4
-                if passes >= target_laps:
-                    value = current_time_ms / 1000.0
+                angle = calculate_angle(hip, knee, ankle)
+                if angle < 120 and exercise_state == "UP":
+                    exercise_state = "DOWN"
+                    rep_start = current_time_ms
+                elif angle > 160 and exercise_state == "DOWN":
+                    exercise_state = "UP"
+                    value += 1
+                    segments.append({
+                        "label": f"Rep {int(value)}",
+                        "start_time_ms": int(rep_start),
+                        "end_time_ms": int(current_time_ms),
+                        "confidence": 92
+                    })
 
         # Draw text overlay regarding reps / score
         cv2.putText(image, f"Value: {round(value, 1)}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
@@ -228,8 +243,6 @@ def process_video(video_path: str, test_type: str):
     final_time = (frame_idx / fps)
     
     if test_type == "shuttle_run" and laps < 10:
-        value = final_time
-    elif "endurance" in test_type and value == 0:
         value = final_time
         
     return float(round(value, 2)), segments, f"/uploads/{annotated_filename}"

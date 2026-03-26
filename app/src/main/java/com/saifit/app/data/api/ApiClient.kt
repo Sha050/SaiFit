@@ -8,7 +8,9 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    var currentIp: String = "10.71.247.177"
+    // Use the Android emulator host loopback by default. Physical devices can
+    // still override this from the in-app server settings screen.
+    var currentIp: String = "10.0.2.2"
         set(value) {
             field = value
             _api = null 

@@ -220,10 +220,10 @@ async def evaluate_video(request: EvaluationRequest):
             value = 28.0 + (random.random() * 35.0)
         elif test_id == "shuttle_run":
             value = 9.5 + (random.random() * 4.5)
-        elif test_id == "endurance_run_800m":
-            value = 150.0 + (random.random() * 70.0)
-        elif test_id == "endurance_run_1600m":
-            value = 320.0 + (random.random() * 140.0)
+        elif test_id == "pushups":
+            value = 15.0 + (random.random() * 20.0)
+        elif test_id == "squats":
+            value = 25.0 + (random.random() * 30.0)
         else:
             value = random.random() * 100.0
 
@@ -307,21 +307,18 @@ def _generate_mock_segments(test_id: str, duration_ms: int):
                     "confidence": int(88 + random.random() * 12),
                 }
             )
-    elif test_id == "endurance_run_800m":
-        segments = [
-            {
-                "label": "Lap 1",
-                "start_time_ms": 0,
-                "end_time_ms": duration_ms // 2,
-                "confidence": int(90 + random.random() * 10),
-            },
-            {
-                "label": "Lap 2",
-                "start_time_ms": duration_ms // 2,
-                "end_time_ms": duration_ms,
-                "confidence": int(88 + random.random() * 12),
-            },
-        ]
+    elif test_id in ["pushups", "squats"]:
+        rep_count = int(10 + (random.random() * 20))
+        rep_duration = duration_ms // max(rep_count, 1)
+        for idx in range(1, rep_count + 1):
+            segments.append(
+                {
+                    "label": f"Rep {idx}",
+                    "start_time_ms": (idx - 1) * rep_duration,
+                    "end_time_ms": idx * rep_duration,
+                    "confidence": int(85 + random.random() * 15),
+                }
+            )
     else:
         segments = [
             {
@@ -345,8 +342,8 @@ def _suggest_sport(test_id: str, value: float):
         return "Basketball / High Jump" if value > 50 else "Football / Hockey"
     if test_id == "shuttle_run":
         return "Badminton / Tennis" if value < 10.5 else "General Athletics"
-    if test_id == "endurance_run_800m":
-        return "Middle Distance Running" if value < 160 else "Team Sports"
-    if test_id == "endurance_run_1600m":
-        return "Long Distance Running / Cycling" if value < 350 else "Team Sports"
+    if test_id == "pushups":
+        return "Gymnastics / Wrestling" if value > 30 else "General Athletics"
+    if test_id == "squats":
+        return "Weightlifting / Powerlifting" if value > 40 else "General Athletics"
     return "General Athletics"

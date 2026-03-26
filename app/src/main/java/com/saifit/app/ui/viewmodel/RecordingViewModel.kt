@@ -9,7 +9,6 @@ import com.saifit.app.data.api.EvaluationRequestDto
 import com.saifit.app.data.model.FitnessTest
 import com.saifit.app.data.model.ResultStatus
 import com.saifit.app.data.model.TestResult
-import com.saifit.app.data.model.VideoSegment
 import com.saifit.app.data.repository.ResultRepository
 import com.saifit.app.data.repository.TestRepository
 import com.saifit.app.data.repository.UserRepository
@@ -32,8 +31,7 @@ data class RecordingUiState(
     val recordingStopped: Boolean = false,
     val videoUri: String? = null,
     val result: TestResult? = null,
-    val error: String? = null,
-    val mockSegments: List<VideoSegment> = emptyList()
+    val error: String? = null
 )
 
 class RecordingViewModel(
@@ -71,16 +69,13 @@ class RecordingViewModel(
     }
 
     fun stopRecording(videoUri: String? = null) {
-        val test = _uiState.value.test ?: return
-        val durationMs = _uiState.value.recordingDurationMs
-        val segments = generateMockReviewSegments(test.id, durationMs)
+        if (_uiState.value.test == null) return
 
         _uiState.update {
             it.copy(
                 isRecording = false,
                 recordingStopped = true,
                 videoUri = videoUri,
-                mockSegments = segments,
                 error = null
             )
         }
@@ -212,60 +207,6 @@ class RecordingViewModel(
                 input.copyTo(output)
             }
             tempFile
-        }
-    }
-
-    private fun generateMockReviewSegments(testId: String, durationMs: Long): List<VideoSegment> {
-        val effectiveDuration = if (durationMs > 0) durationMs else 30000L
-
-        return when (testId) {
-            "situps" -> {
-                val repCount = (20 + (Math.random() * 20)).toInt()
-                val repDuration = effectiveDuration / repCount
-                (1..minOf(repCount, 8)).map { index ->
-                    VideoSegment(
-                        label = "Rep $index",
-                        startTimeMs = (index - 1) * repDuration,
-                        endTimeMs = index * repDuration,
-                        confidence = (85 + Math.random() * 15).toInt()
-                    )
-                }
-            }
-
-            "vertical_jump" -> listOf(
-                VideoSegment("Setup", 0, effectiveDuration / 4, 95),
-                VideoSegment("Jump", effectiveDuration / 4, effectiveDuration / 2, (90 + Math.random() * 10).toInt()),
-                VideoSegment("Landing", effectiveDuration / 2, (effectiveDuration * 0.75).toLong(), 92)
-            )
-
-            "shuttle_run" -> (1..minOf(10, (effectiveDuration / 2000).toInt().coerceAtLeast(2))).map { index ->
-                val segmentLength = effectiveDuration / 10
-                VideoSegment(
-                    label = "Shuttle $index",
-                    startTimeMs = (index - 1) * segmentLength,
-                    endTimeMs = index * segmentLength,
-                    confidence = (88 + Math.random() * 12).toInt()
-                )
-            }
-
-            "endurance_run_800m" -> listOf(
-                VideoSegment("Lap 1", 0, effectiveDuration / 2, (90 + Math.random() * 10).toInt()),
-                VideoSegment("Lap 2", effectiveDuration / 2, effectiveDuration, (88 + Math.random() * 12).toInt())
-            )
-
-            "endurance_run_1600m" -> (1..4).map { index ->
-                val segmentLength = effectiveDuration / 4
-                VideoSegment(
-                    label = "Lap $index",
-                    startTimeMs = (index - 1) * segmentLength,
-                    endTimeMs = index * segmentLength,
-                    confidence = (85 + Math.random() * 15).toInt()
-                )
-            }
-
-            else -> listOf(
-                VideoSegment("Full Recording", 0, effectiveDuration, (90 + Math.random() * 10).toInt())
-            )
         }
     }
 }

@@ -82,7 +82,7 @@ class BenchmarkRepository {
 
     companion object {
 
-        private val lowerIsBetterTests = setOf("shuttle_run", "endurance_run_800m", "endurance_run_1600m")
+        private val lowerIsBetterTests = setOf("shuttle_run")
 
         private val benchmarks = listOf(
 
@@ -111,15 +111,15 @@ class BenchmarkRepository {
             Benchmark("shuttle_run", Gender.MALE, 19, 25, poor = 13.5, average = 12.0, good = 11.0, excellent = 10.0, elite = 9.0),
             Benchmark("shuttle_run", Gender.FEMALE, 19, 25, poor = 14.5, average = 13.0, good = 12.0, excellent = 11.0, elite = 10.0),
 
-            Benchmark("endurance_run_800m", Gender.MALE, 14, 18, poor = 220.0, average = 195.0, good = 175.0, excellent = 160.0, elite = 145.0),
-            Benchmark("endurance_run_800m", Gender.FEMALE, 14, 18, poor = 250.0, average = 220.0, good = 200.0, excellent = 185.0, elite = 170.0),
-            Benchmark("endurance_run_800m", Gender.MALE, 19, 25, poor = 210.0, average = 185.0, good = 165.0, excellent = 150.0, elite = 135.0),
-            Benchmark("endurance_run_800m", Gender.FEMALE, 19, 25, poor = 240.0, average = 210.0, good = 190.0, excellent = 175.0, elite = 160.0),
+            Benchmark("pushups", Gender.MALE, 14, 18, poor = 10.0, average = 20.0, good = 30.0, excellent = 40.0, elite = 50.0),
+            Benchmark("pushups", Gender.FEMALE, 14, 18, poor = 5.0, average = 12.0, good = 20.0, excellent = 30.0, elite = 40.0),
+            Benchmark("pushups", Gender.MALE, 19, 25, poor = 15.0, average = 25.0, good = 35.0, excellent = 45.0, elite = 55.0),
+            Benchmark("pushups", Gender.FEMALE, 19, 25, poor = 8.0, average = 15.0, good = 25.0, excellent = 35.0, elite = 45.0),
 
-            Benchmark("endurance_run_1600m", Gender.MALE, 14, 18, poor = 480.0, average = 420.0, good = 380.0, excellent = 340.0, elite = 300.0),
-            Benchmark("endurance_run_1600m", Gender.FEMALE, 14, 18, poor = 540.0, average = 480.0, good = 430.0, excellent = 390.0, elite = 350.0),
-            Benchmark("endurance_run_1600m", Gender.MALE, 19, 25, poor = 460.0, average = 400.0, good = 360.0, excellent = 320.0, elite = 280.0),
-            Benchmark("endurance_run_1600m", Gender.FEMALE, 19, 25, poor = 520.0, average = 460.0, good = 410.0, excellent = 370.0, elite = 330.0)
+            Benchmark("squats", Gender.MALE, 14, 18, poor = 20.0, average = 35.0, good = 45.0, excellent = 55.0, elite = 65.0),
+            Benchmark("squats", Gender.FEMALE, 14, 18, poor = 15.0, average = 30.0, good = 40.0, excellent = 50.0, elite = 60.0),
+            Benchmark("squats", Gender.MALE, 19, 25, poor = 25.0, average = 40.0, good = 50.0, excellent = 60.0, elite = 70.0),
+            Benchmark("squats", Gender.FEMALE, 19, 25, poor = 20.0, average = 35.0, good = 45.0, excellent = 55.0, elite = 65.0)
         )
     }
 }

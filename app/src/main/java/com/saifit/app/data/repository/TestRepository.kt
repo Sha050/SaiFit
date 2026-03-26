@@ -93,34 +93,34 @@ class TestRepository {
             ),
 
             FitnessTest(
-                id = "endurance_run_800m",
-                name = "Endurance Run (800 m)",
-                description = "Measures cardiovascular endurance. Athletes run 800 metres on a flat track as fast as possible.",
+                id = "pushups",
+                name = "Push-ups",
+                description = "Measures upper body strength and endurance. Perform continuous push-ups.",
                 instructions = listOf(
-                    "Warm up for 5 minutes with light jogging.",
-                    "Stand behind the start line.",
-                    "On 'Go', run 800 metres (2 laps of a 400 m track).",
-                    "Maintain a steady pace; sprinting at the end is allowed.",
-                    "Time is recorded on completion."
+                    "Start in a high plank position with hands slightly wider than shoulder-width.",
+                    "Keep your body in a straight line from head to heels.",
+                    "Lower your body until your chest is close to the floor (elbows at 90 degrees).",
+                    "Push back up to the starting position.",
+                    "Perform as many repetitions as possible."
                 ),
-                unit = "seconds",
-                category = TestCategory.ENDURANCE,
-                iconName = "timer"
+                unit = "reps",
+                category = TestCategory.STRENGTH,
+                iconName = "fitness_center"
             ),
             FitnessTest(
-                id = "endurance_run_1600m",
-                name = "Endurance Run (1600 m)",
-                description = "Extended cardiovascular endurance assessment. Athletes run 1600 metres.",
+                id = "squats",
+                name = "Bodyweight Squats",
+                description = "Measures lower body strength and muscular endurance. Perform continuous squats.",
                 instructions = listOf(
-                    "Warm up for 5-10 minutes.",
-                    "Stand behind the start line.",
-                    "On 'Go', run 1600 metres (4 laps of a 400 m track).",
-                    "Pace yourself — avoid starting too fast.",
-                    "Time is recorded on completion."
+                    "Stand with feet shoulder-width apart, toes pointing slightly outward.",
+                    "Keep your chest up and back straight.",
+                    "Lower your hips back and down as if sitting in a chair, until thighs are parallel to the floor.",
+                    "Push through your heels to return to the starting position.",
+                    "Perform as many repetitions as possible."
                 ),
-                unit = "seconds",
+                unit = "reps",
                 category = TestCategory.ENDURANCE,
-                iconName = "timer"
+                iconName = "fitness_center"
             )
         )
     }

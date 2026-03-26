@@ -98,13 +98,13 @@ class DashboardViewModel(
 
             val bestByAthlete = filtered.groupBy { it.athleteId }
                 .mapValues { (_, results) ->
-                    val lowerIsBetter = results.first().testId in setOf("shuttle_run", "endurance_run_800m", "endurance_run_1600m")
+                    val lowerIsBetter = results.first().testId in setOf("shuttle_run")
                     if (lowerIsBetter) results.minByOrNull { it.value } else results.maxByOrNull { it.value }
                 }
                 .mapNotNull { (id, result) -> result?.let { id to it } }
 
             val sorted = bestByAthlete.let { pairs ->
-                val lowerIsBetter = pairs.firstOrNull()?.second?.testId in setOf("shuttle_run", "endurance_run_800m", "endurance_run_1600m")
+                val lowerIsBetter = pairs.firstOrNull()?.second?.testId in setOf("shuttle_run")
                 if (lowerIsBetter) pairs.sortedBy { it.second.value }
                 else pairs.sortedByDescending { it.second.value }
             }

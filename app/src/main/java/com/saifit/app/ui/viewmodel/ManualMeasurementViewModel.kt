@@ -43,7 +43,6 @@ class ManualMeasurementViewModel(
 
         viewModelScope.launch {
             try {
-
                 val result = TestResult(
                     id = "res_${System.currentTimeMillis()}",
                     testId = test.id,
@@ -60,8 +59,8 @@ class ManualMeasurementViewModel(
                     verification = null
                 )
 
-                resultRepository.addResult(result)
-                _uiState.update { it.copy(isSubmitting = false, result = result) }
+                val savedResult = resultRepository.saveResult(result)
+                _uiState.update { it.copy(isSubmitting = false, result = savedResult) }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.update { it.copy(isSubmitting = false, error = e.message) }
